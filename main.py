@@ -3,14 +3,7 @@ import torch
 import os
 import datetime
 
-if __name__ == '__main__':
-    import torch
-    from torch import nn
-    from torch import optim
-    from transformer import TransformerLM
-    import data
-    import lm
-
+def main():
     device = (
         "cuda"
         if torch.cuda.is_available()
@@ -39,21 +32,19 @@ if __name__ == '__main__':
     data_iter = iter(data.RandomOrderDataIterator(tokenized_data, seq_len + 1))
 
     model: torch.nn.Module = TransformerLM(
-            n_layers,
-            n_heads,
-            embed_size,
-            seq_len,
-            tokenizer.vocab_size(),
-            mlp_hidden_size,
-            with_residuals = True,
-        ).to(device)
+        n_layers,
+        n_heads,
+        embed_size,
+        seq_len,
+        tokenizer.vocab_size(),
+        mlp_hidden_size,
+        with_residuals=True,
+    ).to(device)
 
     optimizer = optim.AdamW(model.parameters(), lr=learning_rate, betas=[0.9, 0.95])
 
-
-
     model.train()
-    
+
     num_batches = 0
     training_time = datetime.datetime.now()
     training_time = (str(training_time)[:19].
@@ -97,3 +88,12 @@ if __name__ == '__main__':
                        "-batch-" + str(num_batches) + ".pth")
             print("Interrupted by user -- current weights were saved on batch", num_batches)
             break
+
+if __name__ == '__main__':
+    import torch
+    from torch import nn
+    from torch import optim
+    from transformer import TransformerLM
+    import data
+    import lm
+    main()
