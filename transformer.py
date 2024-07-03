@@ -121,7 +121,7 @@ class TransformerLM(nn.Module):
                     feed_to_lm = feed_to_lm[-self.max_context_len:]
                 logits = self(torch.tensor([feed_to_lm], dtype=torch.int32))
                 logits_for_last_token = logits[0][-1]
-                distribution_for_last_token = F.softmax(logits_for_last_token)
+                distribution_for_last_token = F.softmax(logits_for_last_token, dim=-1)
                 sampled_token = torch.multinomial(distribution_for_last_token, num_samples=1)
                 generated.append(sampled_token)
                 feed_to_lm.append(sampled_token)
@@ -148,7 +148,7 @@ class TransformerLM(nn.Module):
                 logits_for_last_token[unused_indexes] = float('-inf')
 
                 # implementing temperature
-                distribution_for_last_token = F.softmax(logits_for_last_token/temperature)
+                distribution_for_last_token = F.softmax(logits_for_last_token/temperature, dim=-1)
 
                 sampled_token = torch.multinomial(distribution_for_last_token, num_samples=1)
                 generated.append(sampled_token)
