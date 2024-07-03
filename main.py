@@ -3,6 +3,13 @@ import torch
 import os
 import datetime
 
+import torch
+from torch import nn
+from torch import optim
+from transformer import TransformerLM
+import data
+import lm
+
 def main():
     device = (
         "cuda"
@@ -90,10 +97,4 @@ def main():
             break
 
 if __name__ == '__main__':
-    import torch
-    from torch import nn
-    from torch import optim
-    from transformer import TransformerLM
-    import data
-    import lm
     main()
