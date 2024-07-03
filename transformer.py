@@ -4,14 +4,21 @@ import torch.nn.functional as F
 import attention
 import mlp
 
+device = (
+        "cuda"
+        if torch.cuda.is_available()
+        else "mps"
+        if torch.backends.mps.is_available()
+        else "cpu"
+    )
 
 class TransformerDecoderBlock(nn.Module):
     def __init__(self, n_heads: int, embed_size: int, mlp_hidden_size: int, max_context_len, with_residuals: bool = False):
         super().__init__()
-        self.causal_attention = attention.CausalSelfAttention(embed_size, n_heads, max_context_len)
-        self.mlp = mlp.MLP(embed_size, mlp_hidden_size)
-        self.layer_norm_1 = nn.LayerNorm(embed_size)
-        self.layer_norm_2 = nn.LayerNorm(embed_size)
+        self.causal_attention = attention.CausalSelfAttention(embed_size, n_heads, max_context_len).to(device)
+        self.mlp = mlp.MLP(embed_size, mlp_hidden_size).to(device)
+        self.layer_norm_1 = nn.LayerNorm(embed_size).to(device)
+        self.layer_norm_2 = nn.LayerNorm(embed_size).to(device)
         self.with_residuals = with_residuals
 
     def forward(self, inputs):
@@ -39,8 +46,8 @@ class TransformerDecoderBlock(nn.Module):
 class Embed(nn.Module):
     def __init__(self, vocab_size: int, embed_size: int, max_context_len):
         super().__init__()
-        self.token_embeddings = nn.Embedding(vocab_size, embed_size) # TODO set the right values
-        self.position_embeddings = nn.Embedding(max_context_len, embed_size) # TODO set the right values
+        self.token_embeddings = nn.Embedding(vocab_size, embed_size).to(device) # TODO set the right values
+        self.position_embeddings = nn.Embedding(max_context_len, embed_size).to(device) # TODO set the right values
         self.max_context_len = max_context_len
 
     def forward(self, x):
@@ -64,10 +71,10 @@ class TransformerLM(nn.Module):
             with_residuals: bool,
             ):
         super().__init__()
-        self.embed = Embed(vocab_size, embed_size, max_context_len)
-        self.layers = nn.ModuleList([TransformerDecoderBlock(n_heads, embed_size, mlp_hidden_size, max_context_len, with_residuals) for _ in range(n_layers)])
-        self.layer_norm = nn.LayerNorm(embed_size)
-        self.word_prediction = nn.Linear(embed_size, vocab_size)
+        self.embed = Embed(vocab_size, embed_size, max_context_len).to(device)
+        self.layers = nn.ModuleList([TransformerDecoderBlock(n_heads, embed_size, mlp_hidden_size, max_context_len, with_residuals).to(device) for _ in range(n_layers)])
+        self.layer_norm = nn.LayerNorm(embed_size).to(device)
+        self.word_prediction = nn.Linear(embed_size, vocab_size).to(device)
         self.max_context_len = max_context_len
 
         self.init_weights()
