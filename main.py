@@ -1,5 +1,6 @@
 from __future__ import annotations
 import torch
+import os
 
 if __name__ == '__main__':
     import torch
@@ -11,7 +12,7 @@ if __name__ == '__main__':
 
     seq_len = 128
     batch_size = 64
-    data_path = "data/"
+    data_path = "data" + os.sep
     n_layers = 6
     n_heads = 6
     embed_size = 192

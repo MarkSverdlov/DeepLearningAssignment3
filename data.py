@@ -5,6 +5,8 @@ from torch import nn
 import torch.nn.functional as F
 import random
 import glob
+import pickle
+
 
 class CharTokenizer:
     def __init__(self):
@@ -27,7 +29,6 @@ class CharTokenizer:
         self.vocab = list(self.symbols) + list(sorted(self.tokens))
         self.stoi = {s:i for i, s in enumerate(self.vocab)}
 
-
     def _tokenize_to_symbols(self, text: str) -> list[str]:
         return list(text)
 
@@ -35,7 +36,7 @@ class CharTokenizer:
         seq: list[str] = self._tokenize_to_symbols(text)
         return [self.stoi[s] for s in seq]
 
-    def detokenize(self, tokens: list[int], keep_symbols = True) -> str:
+    def detokenize(self, tokens: list[int], keep_symbols=True) -> str:
         strs: list[str] = [self.vocab[t] for t in tokens]
         if not keep_symbols:
             strs = [s for s in strs if len(s) == 1]
@@ -43,16 +44,18 @@ class CharTokenizer:
 
     def save(self, path: str) -> None:
         # TODO: save it.
-        ...
+        with open(path, 'wb') as outfile:
+            pickle.dump(self, outfile)
 
     @staticmethod
     def load(path: str) -> CharTokenizer:
-        tokenizer = CharTokenizer()
-        # TODO: load it.
-        return tokenizer
+        with open(path, "rb") as infile:
+            tokenizer = pickle.load(infile)
+            return tokenizer
+
 
 class RandomOrderDataIterator:
-    def __init__(self, data, desired_length):
+    def __init__(self, data: list[list[int]], desired_length: int):
         self.desired_length = desired_length
         self.data: list[list[int]] = [seq for seq in data if len(seq) > self.desired_length]
 
@@ -80,7 +83,8 @@ def load_data(path: str) -> [CharTokenizer, list[list[int]]]:
             text = fh.read()
             data.append(tokenizer.tokenize(text))
 
-    return (tokenizer, data)
+    return tokenizer, data
+
 
 def batch_items(data_iter: Iterator[list[int]], batch_size: int = 2) -> Iterator[torch.LongTensor]:
     batch = []

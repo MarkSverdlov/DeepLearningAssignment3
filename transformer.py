@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import attention
 import mlp
 
+
 class TransformerDecoderBlock(nn.Module):
     def __init__(self, n_heads: int, embed_size: int, mlp_hidden_size: int, max_context_len, with_residuals: bool = False):
         super().__init__()
@@ -15,8 +16,17 @@ class TransformerDecoderBlock(nn.Module):
 
     def forward(self, inputs):
         if self.with_residuals:
-            raise Exception("Not implemented")
             # TODO add residuals support.
+            x = inputs
+            residual1 = x
+            residual1 = self.layer_norm_1(residual1)
+            residual1 = self.causal_attention(residual1)
+            x = x + residual1
+            residual2 = x
+            residual2 = self.layer_norm_2(residual2)
+            residual2 = self.mlp(residual2)
+            x = x + residual2
+            return x
         else:
             x = inputs
             x = self.layer_norm_1(x)
@@ -25,21 +35,21 @@ class TransformerDecoderBlock(nn.Module):
             x = self.mlp(x)
             return x
 
+
 class Embed(nn.Module):
     def __init__(self, vocab_size: int, embed_size: int, max_context_len):
         super().__init__()
-        self.token_embeddings = nn.Embedding(0, 0) # TODO set the right values
-        self.position_embeddings = nn.Embedding(0, 0) # TODO set the right values
+        self.token_embeddings = nn.Embedding(vocab_size, embed_size) # TODO set the right values
+        self.position_embeddings = nn.Embedding(max_context_len, embed_size) # TODO set the right values
         self.max_context_len = max_context_len
 
     def forward(self, x):
-        raise Exception("Not implemented") # TODO implement.
         # x has the shape (b x n) where b is batch dimension and n is sequence length.
         # each item is an int, indicating a vocabulary item.
         # The output should be of shape (b x n x d), where d is the embedding dimension.
-        #tok_embeddings = 
-        #pos_embeddings = ...
-        return tok_embeddings + pos_embeddings
+        tok_embeddings = self.token_embeddings(x)  # b x n x d
+        pos_embeddings = self.position_embeddings(torch.arange(x.size()[-1]))  # n x d
+        return tok_embeddings + pos_embeddings  # broadcasting handles it.
 
 
 class TransformerLM(nn.Module):
