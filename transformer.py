@@ -12,6 +12,7 @@ device = (
         else "cpu"
     )
 
+
 class TransformerDecoderBlock(nn.Module):
     def __init__(self, n_heads: int, embed_size: int, mlp_hidden_size: int, max_context_len, with_residuals: bool = False):
         super().__init__()
@@ -110,7 +111,6 @@ class TransformerLM(nn.Module):
                 # You can look at initializers in torch.nn.init
                 pass
 
-
     def sample_continuation(self, prefix: list[int], max_tokens_to_generate: int) -> list[int]:
         feed_to_lm = prefix[:]
         generated = []
@@ -128,9 +128,29 @@ class TransformerLM(nn.Module):
         return generated
 
     def better_sample_continuation(self, prefix: list[int], max_tokens_to_generate: int, temperature: float, topK: int) -> list[int]:
-        raise Exception("Not implemented")
         # TODO implement this.
         # Temperature should be the temperature in which you sample.
         # TopK indicates that we don't sample from the entire distribution, but only from the top k scoring tokens
         # for the given position.
+        feed_to_lm = prefix[:]
+        generated = []
+        with torch.no_grad():
+            while len(generated) < max_tokens_to_generate:
+                if len(feed_to_lm) > self.max_context_len:
+                    # if we have more tokens than context length, trim it to context length.
+                    feed_to_lm = feed_to_lm[-self.max_context_len:]
+                logits = self(torch.tensor([feed_to_lm], dtype=torch.int32))
+                logits_for_last_token = logits[0][-1]
 
+                # implementing filter top_k distrbuition
+                vocab_size = logits_for_last_token.size()[-1]
+                unused_indexes = logits_for_last_token.topk(vocab_size - topK, largest=False)[1]
+                logits_for_last_token[unused_indexes] = float('-inf')
+
+                # implementing temperature
+                distribution_for_last_token = F.softmax(logits_for_last_token/temperature)
+
+                sampled_token = torch.multinomial(distribution_for_last_token, num_samples=1)
+                generated.append(sampled_token)
+                feed_to_lm.append(sampled_token)
+        return generated
