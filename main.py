@@ -88,7 +88,7 @@ def main():
                                     prefix=tokenizer.tokenize("Hello"),
                                     max_tokens_to_generate=500,
                                     temperature=10,
-                                    top_k=5))
+                                    topK=5))
                             model.train()
                             print(f"Model sample: '''{sampled}'''")
                         print("")
