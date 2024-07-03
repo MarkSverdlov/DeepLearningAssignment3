@@ -63,9 +63,7 @@ def main():
                 if num_batches >= num_batches_to_train: break
                 num_batches = num_batches + 1
 
-                batch_x, batch_y = lm.batch_to_labeled_samples(batch)
-                batch_x = batch_x.to(device)
-                batch_y = batch_y.to(device)
+                batch_x, batch_y = lm.batch_to_labeled_samples(batch).to(device)
 
                 logits = model(batch_x)
 
