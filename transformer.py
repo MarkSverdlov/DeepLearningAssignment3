@@ -54,6 +54,8 @@ class Embed(nn.Module):
         # x has the shape (b x n) where b is batch dimension and n is sequence length.
         # each item is an int, indicating a vocabulary item.
         # The output should be of shape (b x n x d), where d is the embedding dimension.
+        x = x.to(device)
+        breakpoint()
         tok_embeddings = self.token_embeddings(x)  # b x n x d
         breakpoint()
         pos_embeddings = self.position_embeddings(torch.arange(x.size()[-1], device=device))  # n x d
