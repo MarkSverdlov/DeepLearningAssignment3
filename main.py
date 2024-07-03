@@ -2,9 +2,6 @@ from __future__ import annotations
 import torch
 import os
 import datetime
-
-import torch
-from torch import nn
 from torch import optim
 from transformer import TransformerLM
 import data
@@ -57,51 +54,52 @@ def main():
     training_time = (str(training_time)[:19].
                      replace(":", "-").
                      replace(" ", "_"))
-    while True:
+
+    for batch in data.batch_items(data_iter, batch_size):
         try:
-            for batch in data.batch_items(data_iter, batch_size):
-                if num_batches >= num_batches_to_train: break
-                num_batches = num_batches + 1
+            if num_batches >= num_batches_to_train: break
+            num_batches = num_batches + 1
 
-                batch_x, batch_y = lm.batch_to_labeled_samples(batch)
-                batch_x = batch_x.to(device)
-                batch_y = batch_y.to(device)
+            batch_x, batch_y = lm.batch_to_labeled_samples(batch)
+            batch_x = batch_x.to(device)
+            batch_y = batch_y.to(device)
 
-                logits = model(batch_x)
+            logits = model(batch_x)
 
-                loss = lm.compute_loss(logits, batch_y)
+            loss = lm.compute_loss(logits, batch_y)
 
-                # parameters update
-                model.zero_grad()
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clipping)
-                optimizer.step()
+            # parameters update
+            model.zero_grad()
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), gradient_clipping)
+            optimizer.step()
 
-                num_batches += 1
-                if num_batches % 10 == 0:
-                    print(f"Seen {num_batches} batches. last loss is: {loss.item()}")
-                    if num_batches % 100 == 0:
-                        for _ in range(1):
-                            model.eval()
-                            sampled = tokenizer.detokenize(
-                                model.better_sample_continuation(
-                                    prefix=tokenizer.tokenize("Hello"),
-                                    max_tokens_to_generate=500,
-                                    temperature=10,
-                                    topK=5))
-                            model.train()
-                            print(f"Model sample: '''{sampled}'''")
-                        print("")
-                        if num_batches % 500 == 0:
-                            torch.save(model.state_dict(),
-                                       "model " + training_time +
-                                       "-batch-" + str(num_batches) + ".pth")
+            num_batches += 1
+            if num_batches % 10 == 0:
+                print(f"Seen {num_batches} batches. last loss is: {loss.item()}")
+                if num_batches % 100 == 0:
+                    for _ in range(1):
+                        model.eval()
+                        sampled = tokenizer.detokenize(
+                            model.better_sample_continuation(
+                                prefix=tokenizer.tokenize("Hello"),
+                                max_tokens_to_generate=500,
+                                temperature=10,
+                                topK=5))
+                        model.train()
+                        print(f"Model sample: '''{sampled}'''")
+                    print("")
+                    if num_batches % 500 == 0:
+                        torch.save(model.state_dict(),
+                                   "model " + training_time +
+                                   "-batch-" + str(num_batches) + ".pth")
         except KeyboardInterrupt:
             torch.save(model.state_dict(),
                        "model " + training_time +
                        "-batch-" + str(num_batches) + ".pth")
             print("Interrupted by user -- current weights were saved on batch", num_batches)
             break
+
 
 if __name__ == '__main__':
     main()
