@@ -46,8 +46,8 @@ class TransformerDecoderBlock(nn.Module):
 class Embed(nn.Module):
     def __init__(self, vocab_size: int, embed_size: int, max_context_len):
         super().__init__()
-        self.token_embeddings = nn.Embedding(vocab_size, embed_size).to(device) # TODO set the right values
-        self.position_embeddings = nn.Embedding(max_context_len, embed_size).to(device) # TODO set the right values
+        self.token_embeddings = nn.Embedding(vocab_size, embed_size, device=device) # TODO set the right values
+        self.position_embeddings = nn.Embedding(max_context_len, embed_size, device=device) # TODO set the right values
         self.max_context_len = max_context_len
 
     def forward(self, x):
@@ -55,10 +55,9 @@ class Embed(nn.Module):
         # each item is an int, indicating a vocabulary item.
         # The output should be of shape (b x n x d), where d is the embedding dimension.
         x = x.to(device)
-        breakpoint()
         tok_embeddings = self.token_embeddings(x)  # b x n x d
-        breakpoint()
-        pos_embeddings = self.position_embeddings(torch.arange(x.size()[-1], device=device))  # n x d
+        a = torch.arange(x.size()[-1], device=device)
+        pos_embeddings = self.position_embeddings(a)  # n x d
         return tok_embeddings + pos_embeddings  # broadcasting handles it.
 
 
