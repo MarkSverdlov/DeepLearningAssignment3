@@ -55,6 +55,7 @@ class Embed(nn.Module):
         # each item is an int, indicating a vocabulary item.
         # The output should be of shape (b x n x d), where d is the embedding dimension.
         tok_embeddings = self.token_embeddings(x)  # b x n x d
+        breakpoint()
         pos_embeddings = self.position_embeddings(torch.arange(x.size()[-1], device=device))  # n x d
         return tok_embeddings + pos_embeddings  # broadcasting handles it.
 
