@@ -5,6 +5,8 @@ import datetime
 from abc import abstractmethod
 import data
 from torch import optim
+
+import transformer
 from transformer import TransformerLM
 import lm
 import numpy as np
@@ -14,11 +16,9 @@ import matplotlib.pyplot as plt
 class TrainingReview:
     def __init__(self,
                  trainer,
-                 initial_model: torch.nn.Module,
                  loss: pd.DataFrame,
                  number_of_epochs: int):
         self.trainer = trainer
-        self.initial_model = initial_model
         self.loss = loss
         self.number_of_epochs = number_of_epochs
 
@@ -127,6 +127,7 @@ class DefaultTrainer(AbstractTrainer):
             self.tokenizer.vocab_size(),
             self.mlp_hidden_size,
             with_residuals=True,
+            dropout=False
         ).to(self.device)
         self.optimizer = optim.AdamW(self.model.parameters(),
                                      lr=self.learning_rate,
@@ -140,7 +141,7 @@ class DefaultTrainer(AbstractTrainer):
                                                       self.seq_len + 1))
         return tokenizer, data_iter
 
-    def _sample(self, num_batches):
+    def _sample(self):
         self.model.eval()
         sampled = self.tokenizer.detokenize(
             self.model.better_sample_continuation(
@@ -187,7 +188,7 @@ class DefaultTrainer(AbstractTrainer):
                         print(f"Seen {num_batches} batches. last loss is: {loss.item()}")
                         loss_history.append(loss.item())
                         if num_batches % 100 == 0:
-                            sampled = self._sample(num_batches)
+                            sampled = self._sample()
                             self.model.train()
                             print(f"Model sample: '''{sampled}'''")
                             print("")
@@ -198,7 +199,6 @@ class DefaultTrainer(AbstractTrainer):
                 print("Interrupted by user -- current weights were saved on batch", num_batches)
                 break
         return TrainingReview(self,
-                              self.initial_model,
                               pd.DataFrame(loss_history,
                                            index=np.arange(len(loss_history))*10+10,
                                            columns=["loss"]),
@@ -207,4 +207,157 @@ class DefaultTrainer(AbstractTrainer):
     def as_trainer(self):
         trainer = self.__class__(self.data_path)
         trainer.description += f'\nAs trainer {self.time}'
+        return trainer
+
+
+class Trainer:
+    def __init__(self,
+                 data_feeder: data.DataFeeder,
+                 sampler: transformer.Sampler = None,
+                 n_layers: int = 6,
+                 n_heads: int = 6,
+                 embed_size: int = 192,
+                 mlp_hidden_size: int = 768,
+                 dropout: bool = False,
+                 initialization: str = "default",
+                 initial_model_path: str = None,
+                 epochs: int = 50000,
+                 batch_size: int = 64,
+                 learning_rate: float = 5e-4,
+                 gradient_clipping: float = 1.0,
+                 betas: tuple[float, float] = (0.9, 0.95)):
+        self.data_feeder = data_feeder
+        self.sampler = sampler
+
+        self.device = (
+            "cuda"
+            if torch.cuda.is_available()
+            else "mps"
+            if torch.backends.mps.is_available()
+            else "cpu"
+        )
+        print(f"Using {self.device} device")
+
+        self.initialization = initialization
+        if self.initialization != "predefined":
+            self.model = torch.load(initial_model_path)
+        else:
+            self.model = TransformerLM(
+                n_layers=n_layers,
+                n_heads=n_heads,
+                embed_size=embed_size,
+                max_context_len=self.data_feeder.seq_len,
+                vocab_size=self.data_feeder.tokenizer.vocab_size(),
+                mlp_hidden_size=mlp_hidden_size,
+                with_residuals=True,
+                dropout=dropout).to(self.device)
+
+        self.epochs = epochs
+        self.batch_size = batch_size
+        self.learning_rate = learning_rate
+        self.gradient_clipping = gradient_clipping
+        self.betas = betas
+
+        self.optimizer = optim.AdamW(self.model.parameters(),
+                                     lr=self.learning_rate,
+                                     betas=self.betas)
+
+        self.description = "AdamW Trainer"
+
+        training_time = datetime.datetime.now()
+        self.time = (str(training_time)[:19].
+                     replace(":", "-").
+                     replace(" ", "_"))
+
+        self._mkdir()
+
+        self._save("initial")
+
+    def train(self) -> TrainingReview:
+        loss_history = []
+        self.model.train()
+        num_batches = 0
+        batch_iter = iter(data.batch_items(
+            self.data_feeder.data_iter,
+            self.batch_size))
+        while True:
+            try:
+                for batch in batch_iter:
+                    if num_batches >= self.epochs:
+                        break
+                    num_batches = num_batches + 1
+
+                    batch_x, batch_y = lm.batch_to_labeled_samples(batch)
+                    batch_x = batch_x.to(self.device)
+                    batch_y = batch_y.to(self.device)
+
+                    logits = self.model(batch_x)
+
+                    loss = lm.compute_loss(logits, batch_y)
+
+                    # parameters update
+                    self.model.zero_grad()
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(
+                        self.model.parameters(),
+                        self.gradient_clipping)
+                    self.optimizer.step()
+
+                    num_batches += 1
+                    if num_batches % 10 == 0:
+                        print(f"Seen {num_batches} batches. last loss is: {loss.item()}")
+                        loss_history.append(loss.item())
+                        if num_batches % 100 == 0:
+                            sampled = self._sample()
+                            self.model.train()
+                            print(f"Model sample: '''{sampled}'''")
+                            print("")
+                            if num_batches % 500 == 0:
+                                self._save(num_batches)
+            except KeyboardInterrupt:
+                self._save(num_batches)
+                print("Interrupted by user -- current weights were saved on batch", num_batches)
+                break
+        return TrainingReview(self,
+                              pd.DataFrame(loss_history,
+                                           index=np.arange(len(loss_history)) * 10 + 10,
+                                           columns=["loss"]),
+                              number_of_epochs=num_batches)
+
+    def _mkdir(self):
+        os.mkdir(self.time)
+        self.data_feeder.tokenizer.save(self.time + os.sep + "tokenizer.pickle")
+
+    def _sample(self):
+        self.model.eval()
+        return self.sampler.sample(self.model)
+
+    def _save(self, num_batches):
+        torch.save(
+            self.model.state_dict(),
+            self.time
+            + os.sep
+            + "model_weights-batch-"
+            + str(num_batches)
+            + ".pth")
+
+    def as_trainer(self):
+        initial_model_path = (self.time
+                              + os.sep
+                              + "model_weights-batch-"
+                              + "initial"
+                              + ".pth")
+        trainer = self.__class__(
+            data_feeder=self.data_feeder,
+            sampler=self.sampler,
+            initialization="predefined",
+            initial_model_path=initial_model_path,
+            epochs=self.epochs,
+            batch_size=self.batch_size,
+            learning_rate=self.learning_rate,
+            gradient_clipping=self.gradient_clipping,
+            betas=self.betas)
+
+        trainer.description += f'\nAs trainer {self.time}'
+
         return trainer

@@ -97,3 +97,14 @@ def batch_items(data_iter: Iterator[list[int]], batch_size: int = 2) -> Iterator
     if len(batch) > 0:
         yield torch.tensor(batch, dtype=torch.long)
 
+
+class DataFeeder:
+    def __init__(self, seq_len, data_path):
+        self.seq_len = seq_len
+        self.data_path = data_path
+        self.tokenizer, self.tokenized_data = load_data(self.data_path)
+        self.data_iter = iter(RandomOrderDataIterator
+                              (self.tokenized_data, self.seq_len))
+
+    def get_data_iter(self):
+        return self.data_iter

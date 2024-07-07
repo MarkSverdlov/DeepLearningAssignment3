@@ -73,6 +73,7 @@ class TransformerLM(nn.Module):
             mlp_hidden_size: int,
             with_residuals: bool,
             dropout: bool,
+            initialization="default"
             ):
         super().__init__()
         self.embed = Embed(vocab_size, embed_size, max_context_len).to(device)
@@ -84,6 +85,7 @@ class TransformerLM(nn.Module):
         if self.dropout:
             self.dropout_module = nn.Dropout(0.1)
 
+        self.initialization = initialization
         self.init_weights()
 
         n_params = sum(p.numel() for p in self.parameters())
@@ -160,3 +162,40 @@ class TransformerLM(nn.Module):
                 generated.append(sampled_token)
                 feed_to_lm.append(sampled_token)
         return generated
+
+
+class Sampler:
+    def __init__(self, prefix, default_max_tokens_to_generate=500, temperature=10, topK=5):
+        self.prefix = prefix
+        self.default_max_tokens_to_generate = default_max_tokens_to_generate
+        self.temperature = temperature
+        self.topK = topK
+
+    def sample(self, model, max_tokens_to_generate=None):
+        if not max_tokens_to_generate:
+            max_tokens_to_generate = self.default_max_tokens_to_generate
+            # Temperature should be the temperature in which you sample.
+            # TopK indicates that we don't sample from the entire distribution, but only from the top k scoring tokens
+            # for the given position.
+            feed_to_lm = self.prefix[:]
+            generated = []
+            with torch.no_grad():
+                while len(generated) < max_tokens_to_generate:
+                    if len(feed_to_lm) > model.max_context_len:
+                        # if we have more tokens than context length, trim it to context length.
+                        feed_to_lm = feed_to_lm[-model.max_context_len:]
+                    logits = model(torch.tensor([feed_to_lm], dtype=torch.int32))
+                    logits_for_last_token = logits[0][-1]
+
+                    # implementing filter top_k distrbuition
+                    vocab_size = logits_for_last_token.size()[-1]
+                    unused_indexes = logits_for_last_token.topk(vocab_size - self.topK, largest=False)[1]
+                    logits_for_last_token[unused_indexes] = float('-inf')
+
+                    # implementing temperature
+                    distribution_for_last_token = F.softmax(logits_for_last_token / self.temperature, dim=-1)
+
+                    sampled_token = torch.multinomial(distribution_for_last_token, num_samples=1)
+                    generated.append(sampled_token)
+                    feed_to_lm.append(sampled_token)
+            return generated
