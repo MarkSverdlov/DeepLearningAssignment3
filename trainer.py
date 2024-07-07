@@ -153,8 +153,7 @@ class DefaultTrainer(AbstractTrainer):
 
     def _save(self, num_batches):
         torch.save(self.model.state_dict(),
-                   "model " + self.time +
-                   "-batch-" + str(num_batches) + ".pth")
+                   self.time + os.sep + "model_weights-batch-" + str(num_batches) + ".pth")
 
     def train(self) -> TrainingReview:
         loss_history = []
@@ -170,7 +169,7 @@ class DefaultTrainer(AbstractTrainer):
                     batch_x, batch_y = lm.batch_to_labeled_samples(batch)
                     batch_x = batch_x.to(self.device)
                     batch_y = batch_y.to(self.device)
-                    
+
                     logits = self.model(batch_x)
 
                     loss = lm.compute_loss(logits, batch_y)
@@ -201,7 +200,7 @@ class DefaultTrainer(AbstractTrainer):
         return TrainingReview(self,
                               self.initial_model,
                               pd.DataFrame(loss_history,
-                                           index=np.arange(len(loss_history)*10+10),
+                                           index=np.arange(len(loss_history))*10+10,
                                            columns=["loss"]),
                               number_of_epochs=num_batches)
 
