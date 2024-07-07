@@ -141,10 +141,20 @@ class DefaultTrainer(AbstractTrainer):
         return tokenizer, data_iter
 
     def _sample(self, num_batches):
-        pass
+        self.model.eval()
+        sampled = self.tokenizer.detokenize(
+            self.model.better_sample_continuation(
+                prefix=self.tokenizer.tokenize("Hello"),
+                max_tokens_to_generate=500,
+                temperature=10,
+                topK=5))
+
+        return sampled
 
     def _save(self, num_batches):
-        pass
+        torch.save(self.model.state_dict(),
+                   "model " + self.time +
+                   "-batch-" + str(num_batches) + ".pth")
 
     def train(self) -> TrainingReview:
         loss_history = []
@@ -158,7 +168,9 @@ class DefaultTrainer(AbstractTrainer):
                     num_batches = num_batches + 1
 
                     batch_x, batch_y = lm.batch_to_labeled_samples(batch)
-
+                    batch_x = batch_x.to(self.device)
+                    batch_y = batch_y.to(self.device)
+                    
                     logits = self.model(batch_x)
 
                     loss = lm.compute_loss(logits, batch_y)
@@ -176,7 +188,10 @@ class DefaultTrainer(AbstractTrainer):
                         print(f"Seen {num_batches} batches. last loss is: {loss.item()}")
                         loss_history.append(loss.item())
                         if num_batches % 100 == 0:
-                            self._sample(num_batches)
+                            sampled = self._sample(num_batches)
+                            self.model.train()
+                            print(f"Model sample: '''{sampled}'''")
+                            print("")
                             if num_batches % 500 == 0:
                                 self._save(num_batches)
             except KeyboardInterrupt:
