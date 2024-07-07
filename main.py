@@ -7,6 +7,7 @@ from transformer import TransformerLM
 import data
 import lm
 
+
 def main():
     device = (
         "cuda"
@@ -45,7 +46,7 @@ def main():
         with_residuals=True,
     ).to(device)
 
-    optimizer = optim.AdamW(model.parameters(), lr=learning_rate, betas=[0.9, 0.95])
+    optimizer = optim.AdamW(model.parameters(), lr=learning_rate, betas=(0.9, 0.95))
 
     model.train()
 
@@ -57,7 +58,8 @@ def main():
 
     for batch in data.batch_items(data_iter, batch_size):
         try:
-            if num_batches >= num_batches_to_train: break
+            if num_batches >= num_batches_to_train:
+                break
             num_batches = num_batches + 1
 
             batch_x, batch_y = lm.batch_to_labeled_samples(batch)
@@ -99,6 +101,9 @@ def main():
                        "-batch-" + str(num_batches) + ".pth")
             print("Interrupted by user -- current weights were saved on batch", num_batches)
             break
+    torch.save(model.state_dict(),
+               "model " + training_time +
+               "-batch-" + str(num_batches) + ".pth")
 
 
 if __name__ == '__main__':

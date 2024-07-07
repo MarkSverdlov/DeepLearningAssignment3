@@ -1,10 +1,9 @@
 from __future__ import annotations
 import torch
-from torch import nn
 import torch.nn.functional as F
 
 
-def batch_to_labeled_samples(batch: torch.IntTensor) -> [torch.IntTensor, torch.IntTensor]:
+def batch_to_labeled_samples(batch: torch.LongTensor) -> [torch.LongTensor, torch.LongTensor]:
     # TODO implement this.
     # The batches that we get from the reader have corpus-sequences of length max-context + 1.
     # We need to translate them to input/output examples, each of which is shorter by one.
@@ -23,4 +22,3 @@ def compute_loss(logits, gold_labels):
     logits = logits.flatten(0, -2)  # *, V tensor
     gold_labels = gold_labels.flatten()  # * tensor
     return F.cross_entropy(logits, gold_labels)
-
