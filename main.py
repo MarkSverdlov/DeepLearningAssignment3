@@ -1,7 +1,7 @@
 from __future__ import annotations
-import torch
 import os
 import datetime
+import torch
 from torch import optim
 from transformer import TransformerLM
 import data
