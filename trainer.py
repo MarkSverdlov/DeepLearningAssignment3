@@ -35,7 +35,7 @@ class TrainingReview:
     @staticmethod
     def review_data(reviews: list):
         list_ = [pd.Series({"Training": r.trainer.time,
-                            "Final Loss": r.loss[-1],
+                            "Final Loss": r.loss.iloc[-1],
                             "Number Of Epochs": r.number_of_epochs}
                            ) for r in reviews]
         return pd.DataFrame(list_)
@@ -205,4 +205,6 @@ class DefaultTrainer(AbstractTrainer):
                               number_of_epochs=num_batches)
 
     def as_trainer(self):
-        pass
+        trainer = self.__class__(self.data_path)
+        trainer.description += f'\nAs trainer {self.time}'
+        return trainer
