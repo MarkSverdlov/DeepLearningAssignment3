@@ -37,13 +37,16 @@ def create_causal_mask(embed_dim, n_heads, max_context_len):
     return mask
 
 
-def self_attention(v, A, mask=None):
+def self_attention(v, A, mask=None, dropout=False, dropout_module=None):
     # TODO compute sa (corresponding to y in the assignemnt text).
     # This should take very few lines of code.
     # As usual, the dimensions of v and of sa are (b x n x d).
     if mask is not None:
         A = A.masked_fill(mask[..., :A.size()[-2], :A.size()[-1]] == 0, float('-inf'))
-    sa = torch.matmul(nn.functional.softmax(A, dim=-1), v)
+    A = nn.functional.softmax(A, dim=-1)
+    if dropout:
+        A = dropout_module(A)
+    sa = torch.matmul(A, v)
     return sa
 
 
@@ -54,7 +57,7 @@ def self_attention_layer(x, kqv_matrix, attention_mask):
     return sa
 
 
-def multi_head_attention_layer(x, kqv_matrices, mask):
+def multi_head_attention_layer(x, kqv_matrices, mask, dropout=False, dropout_module=None):
     B, N, D = x.size()
     # TODO implement multi-head attention.
     # This is most easily done using calls to self_attention_layer, each with a different
@@ -76,7 +79,7 @@ def multi_head_attention_layer(x, kqv_matrices, mask):
     q = torch.stack(q_list, dim=-3)  # should be of n_heads * N * D
     v = torch.stack(v_list, dim=-3)  # should be of n_heads * N * (D/n_heads)
     att = attention_scores(k, q)
-    sa = self_attention(v, att, mask)  # sa is of dim n_heads * N * (D / n_heads)
+    sa = self_attention(v, att, mask, dropout, dropout_module)  # sa is of dim n_heads * N * (D / n_heads)
     sa = sa.transpose(-2, -3)  # sa is of N * n_heads * (D / n_heads)
     sa = sa.flatten(start_dim=-2)  # sa is N * D
     assert sa.size() == x.size()
@@ -84,7 +87,7 @@ def multi_head_attention_layer(x, kqv_matrices, mask):
 
 
 class CausalSelfAttention(nn.Module):
-    def __init__(self, embed_dim, n_heads, max_context_len):
+    def __init__(self, embed_dim, n_heads, max_context_len, dropout=False):
         super().__init__()
         assert embed_dim % n_heads == 0
         # the linear layers used for k, q, v computations:
@@ -97,8 +100,14 @@ class CausalSelfAttention(nn.Module):
         self.n_heads = n_heads
         self.embed_dim = embed_dim
         self.proj = nn.Linear(embed_dim, embed_dim)
+        self.dropout = dropout
+        if self.dropout:
+            self.dropout_module1 = nn.Dropout(0.1)
+            self.dropout_module2 = nn.Dropout(0.1)
 
     def forward(self, x):
-        sa = multi_head_attention_layer(x, self.kqv_matrices, self.mask)
+        sa = multi_head_attention_layer(x, self.kqv_matrices, self.mask, self.dropout, self.dropout_module1)
+        if self.dropout:
+            sa = self.dropout_module2(sa)
         sa = self.proj(sa)
         return sa

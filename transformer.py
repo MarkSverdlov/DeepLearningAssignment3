@@ -14,9 +14,9 @@ device = (
 
 
 class TransformerDecoderBlock(nn.Module):
-    def __init__(self, n_heads: int, embed_size: int, mlp_hidden_size: int, max_context_len, with_residuals: bool = False):
+    def __init__(self, n_heads: int, embed_size: int, mlp_hidden_size: int, max_context_len, with_residuals: bool = False, dropout: bool = False):
         super().__init__()
-        self.causal_attention = attention.CausalSelfAttention(embed_size, n_heads, max_context_len).to(device)
+        self.causal_attention = attention.CausalSelfAttention(embed_size, n_heads, max_context_len, dropout).to(device)
         self.mlp = mlp.MLP(embed_size, mlp_hidden_size).to(device)
         self.layer_norm_1 = nn.LayerNorm(embed_size).to(device)
         self.layer_norm_2 = nn.LayerNorm(embed_size).to(device)
@@ -72,13 +72,17 @@ class TransformerLM(nn.Module):
             vocab_size: int,
             mlp_hidden_size: int,
             with_residuals: bool,
+            dropout: bool,
             ):
         super().__init__()
         self.embed = Embed(vocab_size, embed_size, max_context_len).to(device)
-        self.layers = nn.ModuleList([TransformerDecoderBlock(n_heads, embed_size, mlp_hidden_size, max_context_len, with_residuals).to(device) for _ in range(n_layers)])
+        self.layers = nn.ModuleList([TransformerDecoderBlock(n_heads, embed_size, mlp_hidden_size, max_context_len, with_residuals, dropout).to(device) for _ in range(n_layers)])
         self.layer_norm = nn.LayerNorm(embed_size).to(device)
         self.word_prediction = nn.Linear(embed_size, vocab_size).to(device)
         self.max_context_len = max_context_len
+        self.dropout = dropout
+        if self.dropout:
+            self.dropout_module = nn.Dropout(0.1)
 
         self.init_weights()
 
@@ -87,6 +91,8 @@ class TransformerLM(nn.Module):
 
     def forward(self, inputs):
         x = self.embed(inputs)
+        if self.dropout:
+            x = self.dropout_module(x)
         for layer in self.layers:
             x = layer(x)
         x = self.layer_norm(x)

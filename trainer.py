@@ -35,7 +35,7 @@ class TrainingReview:
     @staticmethod
     def review_data(reviews: list):
         list_ = [pd.Series({"Training": r.trainer.time,
-                            "Final Loss": r.loss.iloc[-1],
+                            "Final Loss": r.loss.iat[-1],
                             "Number Of Epochs": r.number_of_epochs}
                            ) for r in reviews]
         return pd.DataFrame(list_)
