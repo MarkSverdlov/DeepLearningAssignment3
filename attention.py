@@ -9,6 +9,7 @@ def create_kqv_matrix(input_vector_dim, n_heads = 1):
     # Myself: assumes input_vector_dim is the dimension of key, query, result vectors.
     return nn.Linear(input_vector_dim, 2*input_vector_dim + input_vector_dim // n_heads) # TODO fill in the correct dimensions
 
+
 def kqv(x, linear):
     B, N, D = x.size()
     # TODO compute k, q, and v
@@ -101,6 +102,8 @@ class CausalSelfAttention(nn.Module):
         self.embed_dim = embed_dim
         self.proj = nn.Linear(embed_dim, embed_dim)
         self.dropout = dropout
+        self.dropout_module1 = None
+        self.dropout_module2 = None
         if self.dropout:
             self.dropout_module1 = nn.Dropout(0.1)
             self.dropout_module2 = nn.Dropout(0.1)
