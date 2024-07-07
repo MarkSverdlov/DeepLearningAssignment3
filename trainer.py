@@ -239,10 +239,10 @@ class Trainer:
         print(f"Using {self.device} device")
 
         self.initialization = initialization
-        if self.initialization != "predefined":
+        if self.initialization == "predefined":
             self.model = torch.load(initial_model_path)
         else:
-            self.model = TransformerLM(
+            self.model = (TransformerLM(
                 n_layers=n_layers,
                 n_heads=n_heads,
                 embed_size=embed_size,
@@ -250,7 +250,9 @@ class Trainer:
                 vocab_size=self.data_feeder.tokenizer.vocab_size(),
                 mlp_hidden_size=mlp_hidden_size,
                 with_residuals=True,
-                dropout=dropout).to(self.device)
+                dropout=dropout,
+                initialization=self.initialization)
+                          .to(self.device))
 
         self.epochs = epochs
         self.batch_size = batch_size
