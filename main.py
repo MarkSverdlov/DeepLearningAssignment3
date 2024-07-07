@@ -1,7 +1,12 @@
 from __future__ import annotations
-import torch
 import os
 import datetime
+import torch
+from torch import optim
+from transformer import TransformerLM
+import data
+import lm
+
 
 def main():
     device = (
@@ -53,7 +58,8 @@ def main():
     while True:
         try:
             for batch in data.batch_items(data_iter, batch_size):
-                if num_batches >= num_batches_to_train: break
+                if num_batches >= num_batches_to_train:
+                    break
                 num_batches = num_batches + 1
 
                 batch_x, batch_y = lm.batch_to_labeled_samples(batch)
@@ -89,11 +95,6 @@ def main():
             print("Interrupted by user -- current weights were saved on batch", num_batches)
             break
 
+
 if __name__ == '__main__':
-    import torch
-    from torch import nn
-    from torch import optim
-    from transformer import TransformerLM
-    import data
-    import lm
     main()

@@ -1,0 +1,194 @@
+import os
+import pandas as pd
+import torch
+import datetime
+from abc import abstractmethod
+import data
+from torch import optim
+from transformer import TransformerLM
+import lm
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+class TrainingReview:
+    def __init__(self,
+                 trainer,
+                 initial_model: torch.nn.Module,
+                 loss: pd.DataFrame,
+                 number_of_epochs: int):
+        self.trainer = trainer
+        self.initial_model = initial_model
+        self.loss = loss
+        self.number_of_epochs = number_of_epochs
+
+    def plot_loss(self):
+        plt.plot(self.loss)
+
+    def get_loss(self):
+        return self.loss
+
+    def retrain(self):
+        re_trainer = self.trainer.as_trainer()
+        return re_trainer.train()
+
+    @staticmethod
+    def review_data(reviews: list):
+        list_ = [pd.Series({"Training": r.trainer.time,
+                            "Final Loss": r.loss[-1],
+                            "Number Of Epochs": r.number_of_epochs}
+                           ) for r in reviews]
+        return pd.DataFrame(list_)
+
+
+class AbstractTrainer:
+    def __init__(self,
+                 seq_len: int,
+                 batch_size: int,
+                 data_path: str,
+                 dropout: bool,
+                 epochs: int,
+                 initialization: str,
+                 learning_rate: float,
+                 gradient_clipping: float,
+                 betas: list[float],
+                 initial_model: torch.nn.Module = None):
+        self.seq_len = seq_len
+        self.batch_size = batch_size
+        self.data_path = data_path
+        self.dropout = dropout
+        self.epochs = epochs
+        self.initialization = initialization
+        self.learning_rate = learning_rate
+        self.gradient_clipping = gradient_clipping
+        self.betas = betas
+
+        self.description = "Abstract Trainer"
+        self.model = None
+        self.device = (
+            "cuda"
+            if torch.cuda.is_available()
+            else "mps"
+            if torch.backends.mps.is_available()
+            else "cpu"
+        )
+        print(f"Using {self.device} device")
+
+        self.optimizer = None
+        training_time = datetime.datetime.now()
+        self.time = (str(training_time)[:19].
+                     replace(":", "-").
+                     replace(" ", "_"))
+
+        self.initial_model = initial_model
+
+    @abstractmethod
+    def train(self) -> TrainingReview:
+        pass
+
+    @abstractmethod
+    def as_trainer(self):
+        trainer = self.__class__(self.seq_len,
+                                 self.batch_size,
+                                 self.data_path,
+                                 self.dropout,
+                                 self.epochs,
+                                 self.initialization,
+                                 self.learning_rate,
+                                 self.gradient_clipping,
+                                 self.betas,
+                                 self.initial_model)
+
+        trainer.description += f'\nAs trainer {self.time}'
+        return trainer
+
+
+class DefaultTrainer(AbstractTrainer):
+    def __init__(self, data_path):
+        super().__init__(seq_len=128,
+                         batch_size=64,
+                         data_path=data_path,
+                         dropout=False,
+                         epochs=50000,
+                         initialization="default",
+                         learning_rate=5e-4,
+                         gradient_clipping=1.0,
+                         betas=[0.9, 0.95])
+        self.n_layers = 6
+        self.n_heads = 6
+        self.embed_size = 192
+        self.mlp_hidden_size = self.embed_size * 4
+        self.tokenizer, self.data_iter = self._tokenize_data()
+        self.model = TransformerLM(
+            self.n_layers,
+            self.n_heads,
+            self.embed_size,
+            self.seq_len,
+            self.tokenizer.vocab_size(),
+            self.mlp_hidden_size,
+            with_residuals=True,
+        ).to(self.device)
+        self.optimizer = optim.AdamW(self.model.parameters(),
+                                     lr=self.learning_rate,
+                                     betas=self.betas)
+
+    def _tokenize_data(self):
+        os.mkdir(self.time)
+        tokenizer, tokenized_data = data.load_data(self.data_path)
+        tokenizer.save(self.time + os.sep + "tokenizer.pickle")
+        data_iter = iter(data.RandomOrderDataIterator(tokenized_data,
+                                                      self.seq_len + 1))
+        return tokenizer, data_iter
+
+    def _sample(self, num_batches):
+        pass
+
+    def _save(self, num_batches):
+        pass
+
+    def train(self) -> TrainingReview:
+        loss_history = []
+        self.model.train()
+        num_batches = 0
+        while True:
+            try:
+                for batch in data.batch_items(self.data_iter, self.batch_size):
+                    if num_batches >= self.epochs:
+                        break
+                    num_batches = num_batches + 1
+
+                    batch_x, batch_y = lm.batch_to_labeled_samples(batch)
+
+                    logits = self.model(batch_x)
+
+                    loss = lm.compute_loss(logits, batch_y)
+
+                    # parameters update
+                    self.model.zero_grad()
+                    loss.backward()
+                    torch.nn.utils.clip_grad_norm_(
+                        self.model.parameters(),
+                        self.gradient_clipping)
+                    self.optimizer.step()
+
+                    num_batches += 1
+                    if num_batches % 10 == 0:
+                        print(f"Seen {num_batches} batches. last loss is: {loss.item()}")
+                        loss_history.append(loss.item())
+                        if num_batches % 100 == 0:
+                            self._sample(num_batches)
+                            if num_batches % 500 == 0:
+                                self._save(num_batches)
+            except KeyboardInterrupt:
+                self._save(num_batches)
+                print("Interrupted by user -- current weights were saved on batch", num_batches)
+                break
+        return TrainingReview(self,
+                              self.initial_model,
+                              pd.DataFrame(loss_history,
+                                           index=np.arange(len(loss_history)*10+10),
+                                           columns=["loss"]),
+                              number_of_epochs=num_batches)
+
+    def as_trainer(self):
+        pass
