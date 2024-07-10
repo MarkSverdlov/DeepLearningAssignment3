@@ -339,7 +339,7 @@ class Trainer:
 
     def _sample(self):
         self.model.eval()
-        return self.sampler.sample(self.model)
+        return self.data_feeder.tokenizer.detokenize(self.sampler.sample(self.model))
 
     def _save(self, num_batches):
         torch.save(
