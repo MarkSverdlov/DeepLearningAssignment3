@@ -12,6 +12,8 @@ import lm
 import numpy as np
 import matplotlib.pyplot as plt
 
+import pickle
+
 
 class TrainingReview:
     def __init__(self,
@@ -39,6 +41,11 @@ class TrainingReview:
                             "Number Of Epochs": r.number_of_epochs}
                            ) for r in reviews]
         return pd.DataFrame(list_)
+
+    def save(self, path: str) -> None:
+        # TODO: save it.
+        with open(path, 'wb') as outfile:
+            pickle.dump(self, outfile)
 
 
 class AbstractTrainer:
