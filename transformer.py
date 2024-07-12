@@ -113,11 +113,25 @@ class TransformerLM(nn.Module):
             elif isinstance(p, nn.Linear):
                 # TODO initialize p.weight and p.bias (if it is not None).
                 # You can look at initializers in torch.nn.init
-                pass
+                if self.initialization == "default":
+                    pass
+                elif self.initialization == "kaiming_uniform":
+                    torch.nn.init.kaiming_uniform_(p.weight, nonlinearity="relu")
+                    torch.nn.init.kaiming_uniform_(p.bias, nonlinearity="relu")
+                elif self.initialization == "kaiming_normal":
+                    torch.nn.init.kaiming_normal_(p.weight, nonlinearity="relu")
+                    torch.nn.init.kaiming_normal_(p.bias, nonlinearity="relu")
             elif isinstance(p, nn.Embedding):
                 # TODO initialize p.weight and p.bias (if it is not None).
                 # You can look at initializers in torch.nn.init
-                pass
+                if self.initialization == "default":
+                    pass
+                elif self.initialization == "kaiming_uniform":
+                    torch.nn.init.kaiming_uniform_(p.weight, nonlinearity="relu")
+                    torch.nn.init.kaiming_uniform_(p.bias, nonlinearity="relu")
+                elif self.initialization == "kaiming_normal":
+                    torch.nn.init.kaiming_normal_(p.weight, nonlinearity="relu")
+                    torch.nn.init.kaiming_normal_(p.bias, nonlinearity="relu")
 
     def sample_continuation(self, prefix: list[int], max_tokens_to_generate: int) -> list[int]:
         feed_to_lm = prefix[:]
