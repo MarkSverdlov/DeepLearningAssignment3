@@ -201,4 +201,3 @@ class Trainer:
         trainer.description += f'\nAs trainer {self.time}'
 
         return trainer
-    

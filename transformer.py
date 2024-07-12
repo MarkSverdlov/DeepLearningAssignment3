@@ -108,8 +108,10 @@ class TransformerLM(nn.Module):
         # but can also condition on individual names, for example by checking pn.endswith(...).
         for pn, p in self.named_parameters():
             if "layer_norm" in pn:
-                torch.nn.init.zeros_(p.bias)
-                torch.nn.init.ones_(p.weight)
+                if pn.endswith('bias'):
+                    torch.nn.init.zeros_(p)
+                else:
+                    torch.nn.init.ones_(p)
             elif "embed" in pn:
                 # TODO initialize p.weight and p.bias (if it is not None).
                 # You can look at initializers in torch.nn.init
