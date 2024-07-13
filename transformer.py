@@ -115,8 +115,9 @@ class TransformerLM(nn.Module):
             elif "embed" in pn:
                 # TODO initialize p.weight and p.bias (if it is not None).
                 # You can look at initializers in torch.nn.init
-                if self.initialization == "default":
-                    pass
+                if self.initialization == "default" or pn.endswith("bias"):
+                    if pn.endswith("bias"):
+                        torch.nn.init.zeros_(p)  # initialize bias with zero
                 elif self.initialization == "kaiming_uniform":
                     torch.nn.init.kaiming_uniform_(p, nonlinearity="relu")
                 elif self.initialization == "kaiming_normal":
@@ -127,8 +128,9 @@ class TransformerLM(nn.Module):
             else:
                 # TODO initialize p.weight and p.bias (if it is not None).
                 # You can look at initializers in torch.nn.init
-                if self.initialization == "default":
-                    pass
+                if self.initialization == "default" or pn.endswith("bias"):
+                    if pn.endswith("bias"):
+                        torch.nn.init.zeros_(p)  # initialize bias with zero
                 elif self.initialization == "kaiming_uniform":
                     torch.nn.init.kaiming_uniform_(p, nonlinearity="relu")
                 elif self.initialization == "kaiming_normal":
