@@ -78,7 +78,18 @@ class Trainer:
 
         self.initialization = initialization
         if self.initialization == "predefined":
-            self.model = torch.load(initial_model_path)
+            self.model = (TransformerLM(
+                n_layers=n_layers,
+                n_heads=n_heads,
+                embed_size=embed_size,
+                max_context_len=self.max_context_len,
+                vocab_size=self.vocab_size,
+                mlp_hidden_size=mlp_hidden_size,
+                with_residuals=True,
+                dropout=dropout,
+                initialization="default")
+                          .to(self.device))
+            self.model.load_state_dict(torch.load(initial_model_path))
         else:
             self.model = (TransformerLM(
                 n_layers=n_layers,
