@@ -32,7 +32,7 @@ def get_attention_scores(x, model, feeder, max_context_len):
 
     att = att.squeeze(dim=0)
     att = torch.split(att, [1] * model.layers[0].causal_attention.n_heads, dim=0)
-    mask = create_causal_mask(0, 0, max_context_len)
+    mask = create_causal_mask(0, 0, max_context_len, device)
     dfs = []
     for matrix in att:
         matrix = matrix.squeeze(dim=0)
