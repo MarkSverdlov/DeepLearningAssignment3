@@ -28,13 +28,13 @@ def attention_scores(a, b):
     return A
 
 
-def create_causal_mask(embed_dim, n_heads, max_context_len):
+def create_causal_mask(embed_dim, n_heads, max_context_len, device="cpu"):
     # Return a causal mask (a tensor) with zeroes in dimensions we want to zero out.
     # This function receives more arguments than it actually needs. This is just because
     # it is part of an assignment, and I want you to figure out on your own which arguments
     # are relevant.
 
-    mask = torch.ones(1, max_context_len, max_context_len).tril()  # TODO replace this line with the creation of a causal mask.
+    mask = torch.ones(1, max_context_len, max_context_len, device=device).tril()  # TODO replace this line with the creation of a causal mask.
     return mask
 
 

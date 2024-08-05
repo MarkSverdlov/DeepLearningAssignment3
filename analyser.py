@@ -9,9 +9,10 @@ import plotly.express as px
 
 
 def get_attention_scores(x, model, feeder, max_context_len):
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.eval()
     ex = feeder.tokenizer.tokenize(x)
-    ex = torch.tensor([ex], dtype=torch.int32, requires_grad=False)
+    ex = torch.tensor([ex], dtype=torch.int32, requires_grad=False, device=device)
     ex = model.embed(ex)
     ex = model.layers[0].layer_norm_1(ex)
     kqv_matrices = model.layers[0].causal_attention.kqv_matrices
