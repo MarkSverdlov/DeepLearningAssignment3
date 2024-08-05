@@ -38,7 +38,7 @@ def get_attention_scores(x, model, feeder, max_context_len):
         matrix = matrix.squeeze(dim=0)
         matrix = matrix.masked_fill(mask[..., :matrix.shape[-2], :matrix.size()[-1]] == 0, float('-inf'))
         matrix = torch.nn.functional.softmax(matrix, dim=-1)
-        df = pd.DataFrame(matrix.squeeze(dim=0).detach().numpy(), index=np.arange(len(x)), columns=list(x))
+        df = pd.DataFrame(matrix.squeeze(dim=0).detach().cpu().numpy(), index=np.arange(len(x)), columns=list(x))
         dfs.append(df)
     return dfs
 
